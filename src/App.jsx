@@ -51,8 +51,13 @@ export default function App() {
   const [filterOptions, setFilterOptions] = useState({ automation_type: [], department: [], industry: [] });
   const [streamStatus, setStreamStatus] = useState('connecting');
   const [queueSize, setQueueSize]     = useState(0);
+  const [selectedRow, setSelectedRow] = useState(null);   // pause-gated inspector
 
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+
+  // Inspector is only meaningful on a frozen snapshot — close it when the
+  // stream resumes so it never shows stale, mutating data.
+  useEffect(() => { if (!paused) setSelectedRow(null); }, [paused]);
 
   const snapshotCounts = useCallback(() => {
     const c = countsRef.current;
@@ -228,6 +233,9 @@ export default function App() {
   const handleFilterClear = useCallback((field) => {
     setFilters(prev => ({ ...prev, [field]: [] }));
   }, []);
+
+  const handleRowClick = useCallback((record) => { setSelectedRow(record); }, []);
+  const handleInspectorClose = useCallback(() => { setSelectedRow(null); }, []);
 
   // Derived view: filter → fuzzy search → multi-sort. Recomputes on each tick
   // (dataVersion) and on any control change. Reads the in-place master ref.
