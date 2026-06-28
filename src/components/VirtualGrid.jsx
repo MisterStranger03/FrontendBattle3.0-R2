@@ -3,37 +3,43 @@ import { COLUMNS, TOTAL_COL_WIDTH, formatCell, isAlertRow } from '../utils/grid'
 
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 44;
+const OVERSCAN = 6;   // extra rows rendered above/below the viewport (smooth edges)
 const SORT_ICONS = { asc: ' ▲', desc: ' ▼' };
 
-export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, paused, queueSize, onRowClick, selectedUid }) {
-  const containerRef  = useRef(null);
-  const rowWindowRef  = useRef(null);
-  const rowRefsArr    = useRef([]);
-  const startIdxRef   = useRef(0);
-  const rafIdRef      = useRef(null);
-  const rowsRef       = useRef(rows);
+export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, paused, queueSize, onRowClick, selectedUid, viewSignature }) {
+  const containerRef    = useRef(null);
+  const rowWindowRef    = useRef(null);
+  const rowRefsArr      = useRef([]);
+  const renderStartRef  = useRef(-1);   // first data index currently rendered by the pool
+  const rafIdRef        = useRef(null);
+  const rowsRef         = useRef(rows);
   const [visibleCount, setVisibleCount] = useState(30);
 
   useEffect(() => { rowsRef.current = rows; }, [rows]);
 
-  // Resize observer — recalculates row count on container resize
+  // Resize observer — pool size = visible rows + overscan top & bottom
   useEffect(() => {
     if (!containerRef.current) return;
     const obs = new ResizeObserver(([entry]) => {
       const h = entry.contentRect.height;
-      setVisibleCount(Math.ceil((h - HEADER_HEIGHT) / ROW_HEIGHT) + 2);
+      setVisibleCount(Math.ceil((h - HEADER_HEIGHT) / ROW_HEIGHT) + 1 + OVERSCAN * 2);
     });
     obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
 
-  // Reset scroll position when sort changes
+  // Reset scroll to the top whenever the *view* changes (filter / search / sort),
+  // so the user lands at the top of the new result set — and so a deep scroll
+  // position can't carry over to a much shorter filtered list.
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
-  }, [sortKeys]);
+    renderStartRef.current = -1;
+  }, [viewSignature]);
 
+  // Paint the pool for the current renderStart. Cheap (~pool×cols textContent
+  // writes); only runs when the window crosses a row boundary, not every frame.
   const paint = useCallback(() => {
-    const startIdx = startIdxRef.current;
+    const renderStart = renderStartRef.current < 0 ? 0 : renderStartRef.current;
     const data = rowsRef.current;
     const rowEls = rowRefsArr.current;
 
@@ -41,7 +47,8 @@ export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, 
       const el = rowEls[i];
       if (!el) continue;
 
-      const row = data[startIdx + i];
+      const dataIndex = renderStart + i;
+      const row = data[dataIndex];
 
       if (!row) {
         el.style.visibility = 'hidden';
@@ -52,7 +59,7 @@ export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, 
       el.style.visibility = 'visible';
       // Map this recycled node back to its data index so a click (while paused)
       // can resolve the exact record even after scrolling.
-      el.dataset.rowIndex = startIdx + i;
+      el.dataset.rowIndex = dataIndex;
       el.dataset.selected = (selectedUid && row.internal_uid === selectedUid) ? '1' : '';
 
       const cells = el.children;
@@ -102,31 +109,41 @@ export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, 
     if (record) onRowClick(record);
   }, [paused, onRowClick]);
 
+  // Recompute the rendered window from the current scrollTop. The pool is
+  // translated to its snapped row offset; native (compositor) scroll provides
+  // the smooth pixel movement between boundaries. Returns true if it changed.
+  const syncWindow = useCallback((force) => {
+    const container = containerRef.current;
+    const win = rowWindowRef.current;
+    if (!container || !win) return false;
+    const startIdx = Math.floor(container.scrollTop / ROW_HEIGHT);
+    // Clamp so the pool's transform never exceeds the data height. Without this
+    // a stale/large scrollTop (e.g. just before the browser clamps it after the
+    // row count shrinks) would translate the pool far down — and since CSS
+    // transforms extend an overflow:auto ancestor's scroll region, that would
+    // inflate scrollHeight and leave the grid scrolled into empty space.
+    const maxStart = Math.max(0, rowsRef.current.length - visibleCount);
+    const renderStart = Math.min(Math.max(0, startIdx - OVERSCAN), maxStart);
+    if (!force && renderStart === renderStartRef.current) return false; // glide via native scroll
+    renderStartRef.current = renderStart;
+    win.style.transform = `translate3d(0, ${HEADER_HEIGHT + renderStart * ROW_HEIGHT}px, 0)`;
+    return true;
+  }, [visibleCount]);
+
   const handleScroll = useCallback(() => {
     if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = requestAnimationFrame(() => {
-      if (!containerRef.current || !rowWindowRef.current) return;
-      const scrollTop = containerRef.current.scrollTop;
-      startIdxRef.current = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
-      // translateY moves the row window to the current scroll position.
-      // position:absolute avoids the sticky-parent-boundary bug where the last
-      // rows become unreachable on large datasets.
-      rowWindowRef.current.style.transform = `translateY(${scrollTop}px)`;
-      paint();
+      if (syncWindow(false)) paint();   // only repaint when the window moved a row
     });
-  }, [paint]);
+  }, [syncWindow, paint]);
 
-  // Repaint whenever displayRows changes (stream update or filter/sort change)
+  // Repaint whenever displayRows changes (stream update or filter/sort change).
+  // Force a window resync so the transform/content stay correct after the data
+  // array changes underneath us.
   useEffect(() => {
-    if (rowWindowRef.current) {
-      rowWindowRef.current.style.transform = 'translateY(0px)';
-      startIdxRef.current = containerRef.current ? Math.floor(containerRef.current.scrollTop / ROW_HEIGHT) : 0;
-      if (rowWindowRef.current) {
-        rowWindowRef.current.style.transform = `translateY(${containerRef.current?.scrollTop ?? 0}px)`;
-      }
-    }
+    syncWindow(true);
     paint();
-  }, [rows, paint]);
+  }, [rows, visibleCount, syncWindow, paint]);
 
   const handleHeaderClick = useCallback((col, e) => {
     if (col.sortable) onSort(col.field, e.shiftKey);
@@ -169,18 +186,20 @@ export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, 
           })}
         </div>
 
-        {/* Row window: absolute + translateY.
-            Fixed DOM node count recycled on scroll.
-            absolute avoids sticky parent-boundary cutoff on large datasets. */}
+        {/* Row pool: a fixed count of DOM nodes translated to the snapped row
+            offset of the current window. Native scroll glides between rows;
+            content is recycled (and the pool re-translated) only when the window
+            crosses a row boundary. translate3d keeps it on the compositor. */}
         <div
           ref={rowWindowRef}
           className={`row-window${paused ? ' row-window--clickable' : ''}`}
           onClick={handleRowWindowClick}
           style={{
             position: 'absolute',
-            top: HEADER_HEIGHT,
+            top: 0,
             left: 0,
             right: 0,
+            transform: `translate3d(0, ${HEADER_HEIGHT}px, 0)`,
             willChange: 'transform',
           }}
         >

@@ -268,6 +268,13 @@ export default function App() {
     return result;
   }, [dataVersion, filters, searchQuery, sortKeys]);
 
+  // Identity of the current view (filters/search/sort) — changes when the result
+  // SET changes, but not on a stream tick. Drives the grid's scroll-to-top reset.
+  const viewSignature = useMemo(
+    () => JSON.stringify(filters) + '|' + searchQuery + '|' + JSON.stringify(sortKeys),
+    [filters, searchQuery, sortKeys]
+  );
+
   // Bounty 3: Snapshot Export — serialise the current filtered+sorted view to a
   // downloadable CSV. Chunked generation keeps the live stream running smoothly.
   const handleExport = useCallback(() => {
@@ -403,6 +410,7 @@ export default function App() {
             queueSize={queueSize}
             onRowClick={handleRowClick}
             selectedUid={selectedRow?.internal_uid || null}
+            viewSignature={viewSignature}
           />
         </div>
       )}
