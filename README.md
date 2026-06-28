@@ -157,6 +157,35 @@ KPI counters only advance on real stream ticks (per the Feature 1 spec).
 
 ---
 
+## Bonus Bounty 3.0 — Snapshot Export (non-blocking CSV)
+
+> **Requirement:** Implement a "Snapshot Export" action that parses the active
+> data array — respecting the operator's current multi-column sort sequence and
+> keyword filters — and compiles it instantly into a downloadable `.csv`. Must be
+> entirely client-side and must not freeze ongoing operations.
+
+**Implemented.** `src/utils/exportCsv.js`
+
+- **Respects sort + filters for free** — the export serialises `displayRows`,
+  which is *already* `filter → fuzzy search → multi-sort` applied. The exported
+  file is the operator's exact current view, in the exact current order.
+- **Non-blocking generation** — the (up to 50k-row) serialisation is sliced into
+  8k-row chunks with a `setTimeout` yield between each, so no single task blocks a
+  frame; the 200ms pipeline and 60 FPS scroll keep running throughout. Verified
+  the KPI counters continue advancing mid-export.
+- **Entirely client-side, no new dependency** — native `Blob` +
+  `URL.createObjectURL` + a hidden `<a download>`; the object URL is revoked after
+  the download to free the blob (no charting/CSV library added — deps stay at
+  react / react-dom / chart.js).
+- **Correct CSV** — all 18 source-schema columns (excludes the synthetic
+  `internal_uid`), RFC-4180 escaping (quote-wraps fields with commas/quotes/
+  newlines), filename `rpa-snapshot-<rows>rows-<timestamp>.csv`.
+- **Action shortcut** — an always-visible **EXPORT CSV** header button plus a
+  **Ctrl/Cmd+E** keyboard shortcut; disabled while a previous export is running
+  or when the filtered view is empty.
+
+---
+
 ## Performance Design (Rendering Performance & Memory)
 
 The render-hot path is engineered to avoid the things the Chrome Performance
@@ -202,6 +231,7 @@ src/
     fuzzy.js                # multi-keyword search (Feature 10)
     seed.js                 # full-CSV parser (uid-aligned with dataStream.js)
     aggregate.js            # single-pass snapshot aggregation (Bounty 2.0)
+    exportCsv.js            # chunked, non-blocking CSV export (Bounty 3.0)
 ```
 
 ---

@@ -12,6 +12,7 @@ import { fuzzyMatch } from './utils/fuzzy';
 import { multiSort } from './utils/sort';
 import { coerceRow } from './utils/grid';
 import { parseCsvSeed } from './utils/seed';
+import { exportSnapshotCsv } from './utils/exportCsv';
 
 const CSV_URL = '/rpa_database_2026.csv';
 const PANELS_KEY = 'rpa_panels';
@@ -54,6 +55,7 @@ export default function App() {
   const [queueSize, setQueueSize]     = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);   // pause-gated inspector
   const [analyticsOpen, setAnalyticsOpen] = useState(false); // pause-gated analytics
+  const [exporting, setExporting] = useState(false);      // Snapshot Export (Bounty 3)
 
   useEffect(() => { pausedRef.current = paused; }, [paused]);
 
@@ -266,6 +268,28 @@ export default function App() {
     return result;
   }, [dataVersion, filters, searchQuery, sortKeys]);
 
+  // Bounty 3: Snapshot Export — serialise the current filtered+sorted view to a
+  // downloadable CSV. Chunked generation keeps the live stream running smoothly.
+  const handleExport = useCallback(() => {
+    if (exporting) return;
+    const snapshot = displayRows;        // capture the exact active view
+    if (!snapshot.length) return;
+    setExporting(true);
+    exportSnapshotCsv(snapshot, { onDone: () => setExporting(false) });
+  }, [exporting, displayRows]);
+
+  // Keyboard shortcut: Ctrl/Cmd+E
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        handleExport();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleExport]);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -290,6 +314,15 @@ export default function App() {
             <span className="header-stat-sep">/</span>
             <span className="header-stat-total">{totalRows.toLocaleString()}</span>
           </div>
+          {/* Snapshot Export (Bounty 3) — exports the current filtered+sorted view */}
+          <button
+            className="btn btn--export"
+            onClick={handleExport}
+            disabled={exporting || displayRows.length === 0}
+            title="Export current view to CSV (Ctrl/Cmd+E)"
+          >
+            <span className="btn-icon">⭳</span> {exporting ? 'EXPORTING…' : 'EXPORT CSV'}
+          </button>
           {/* Analytics View toggle — only available while the stream is frozen */}
           {paused && (
             <button

@@ -360,6 +360,9 @@
 .btn--analytics { background: rgba(68,147,248,0.08); border-color: rgba(68,147,248,0.45); color: var(--blue); }
 .btn--analytics:hover { background: rgba(68,147,248,0.16); }
 .btn--analytics-on { background: var(--blue); border-color: var(--blue); color: var(--bg); }
+.btn--export { background: rgba(63,185,80,0.08); border-color: rgba(63,185,80,0.4); color: var(--green); }
+.btn--export:hover:not(:disabled) { background: rgba(63,185,80,0.16); }
+.btn--export:disabled { opacity: 0.5; cursor: default; }
 .btn-icon { font-size: 11px; }
 
 .queue-badge {
