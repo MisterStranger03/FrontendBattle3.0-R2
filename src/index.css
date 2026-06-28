@@ -29,13 +29,20 @@
 
 html, body, #root {
   height: 100%;
-  background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 13px;
   line-height: 1.4;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle depth: a faint amber glow at the top, vignette toward the edges */
+body {
+  background:
+    radial-gradient(1400px 520px at 50% -8%, rgba(255,176,0,0.035), transparent 62%),
+    radial-gradient(900px 600px at 100% 110%, rgba(68,147,248,0.03), transparent 60%),
+    var(--bg);
 }
 
 ::-webkit-scrollbar            { width: 9px; height: 9px; }
