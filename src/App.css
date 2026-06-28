@@ -563,7 +563,8 @@
    for the inspector, while still signalling the frozen/locked state. */
 .grid-pause-banner {
   position: absolute;
-  top: 54px;            /* sit just below the 44px sticky column header */
+  bottom: 16px;         /* toast at the bottom — never covers the top data rows */
+  top: auto;
   left: 50%;
   transform: translateX(-50%);
   display: flex;

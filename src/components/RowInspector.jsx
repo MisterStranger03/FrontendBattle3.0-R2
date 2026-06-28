@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { formatCurrency, formatPercent, formatNumber } from '../utils/format';
+import { formatCurrency, formatCurrencySigned, formatPercent, formatNumber } from '../utils/format';
 
 // Field groups for the inspector — every relational attribute of the record,
 // organised and formatted for scannability.
@@ -90,7 +90,7 @@ export default memo(function RowInspector({ record, onClose }) {
             <Row label="Budget"><span className="insp-num">{formatCurrency(record.budget_usd)}</span></Row>
             <Row label="Annual Savings"><span className="insp-num insp-num--pos">{formatCurrency(record.annual_savings_usd)}</span></Row>
             <Row label="Net (Savings − Budget)">
-              <span className={`insp-num ${netValue < 0 ? 'insp-num--neg' : 'insp-num--pos'}`}>{formatCurrency(netValue)}</span>
+              <span className={`insp-num ${netValue < 0 ? 'insp-num--neg' : 'insp-num--pos'}`}>{formatCurrencySigned(netValue)}</span>
             </Row>
             <Row label="ROI %"><span className="insp-num" data-negative={roiNeg ? '1' : ''}>{formatPercent(record.roi_percent)}</span></Row>
           </section>
