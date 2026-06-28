@@ -73,12 +73,46 @@ KPI counters only advance on real stream ticks (per the Feature 1 spec).
 | 2 | **Financial / Numeric Sanitation** | Locale currency formatting, ROI clamped & rounded to 2 dp; cells clip with ellipsis to prevent overlap. `src/utils/format.js` |
 | 3 | **Visual Alert & Status Indicators** | Failed / negative-ROI rows flash a warning hue; all other updates get a neutral pulse. CSS animations auto-expire via `animationend`. `src/components/VirtualGrid.jsx` |
 | 4 | **Single-Column Sorter** | Click any header → asc → desc → off; order re-derived every tick so it survives the stream. |
-| 5 | **Pipeline Buffer (Pause/Play)** | While paused the UI locks under an overlay; incoming batches buffer in a queue and flush in order on resume — no records dropped. |
+| 5 | **Pipeline Buffer (Pause/Play)** | While paused the *display* locks (frozen snapshot, no stream mutations reach the view); incoming batches buffer in a queue and flush in order on resume — no records dropped. A non-blocking status banner shows the buffered count. |
 | 6 | **Workspace Layout Persistence** | Show/hide panels persisted to `localStorage`; survives a hard refresh. `src/components/LayoutManager.jsx` |
 | 7 | **Categorical Dropdown Filters** | Multi-select checkbox dropdowns for automation type / department / industry. `src/components/FilterBar.jsx` |
 | 8 | **High-Frequency Virtualized DOM Grid** | Custom row recycler: a fixed pool of DOM rows = viewport height ÷ row height; content swapped via `textContent` on scroll (`translateY`), targeting a locked 60 FPS. `src/components/VirtualGrid.jsx` |
 | 9 | **Multi-Column Concurrent Sorter** | Shift+click builds a compound sort key (e.g. industry ▲ then ROI ▼) with priority badges; all 13 columns sortable. `src/utils/sort.js` |
 | 10 | **Multi-Field Fuzzy Search** | Out-of-order, multi-keyword AND matching across all text fields. `src/utils/fuzzy.js` |
+
+---
+
+## Bonus Bounty 1.0 - Pause-Gated Row Inspector
+
+> **Requirement:** When the global *Pause* state is active, clicking any
+> telemetry row in the virtualized grid must open an isolated, detailed inspector
+> panel that parses and beautifully displays every relational attribute of that
+> specific project.
+
+**Implemented.** `src/components/RowInspector.jsx`
+
+- **Pause-gated interaction** — row clicks open the inspector **only while
+  paused**. This is the natural fit for the feature: the display is frozen, so
+  the snapshot under the cursor is stable to inspect. Clicks during live
+  streaming are intentionally inert.
+- **Scroll-safe row resolution** — each recycled DOM row is stamped with its
+  data index (`data-rowIndex`) during `paint()`, so a click resolves to the
+  exact record even after the virtualization has recycled the node.
+- **Complete attribute view** — the panel renders **all 18 fields** of the
+  record, grouped and formatted: *Identity · Status & Performance · Classification
+  · Financials* (incl. a derived **Net = Savings − Budget**) *· Operations ·
+  Timeline · Flags* (AI / Cloud chips). Reuses the Feature 2 formatters; ROI shows
+  red when negative.
+- **Non-blocking pause overlay** — the pause indicator was changed from a
+  click-blocking scrim to a non-blocking banner so rows stay clickable. This
+  still satisfies Feature 5: *"the UI layout **display** must lock completely"*
+  refers to freezing the rendered data view (which it does), not disabling user
+  interaction.
+- **Robust modal UX** — closes via **X**, **Esc**, **backdrop click**, and
+  **auto-closes on resume** (so it never shows a stale, mutating snapshot).
+  Accessible: `role="dialog"`, `aria-modal`, focus-on-open with focus restore.
+- **Zero hot-path cost** — the inspector renders only when a row is selected, so
+  it has no impact on the 200ms streaming / virtualization performance.
 
 ---
 
@@ -118,6 +152,7 @@ src/
     SearchBar.jsx           # Feature 10 (input)
     PausePlayBtn.jsx        # Feature 5
     LayoutManager.jsx       # Feature 6
+    RowInspector.jsx        # Bonus Bounty 1.0 (pause-gated detail panel)
   utils/
     grid.js                 # column schema, cell formatting, row coercion
     format.js               # currency / percent / number sanitation (Feature 2)
