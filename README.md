@@ -1,8 +1,8 @@
-# RPA Operations Terminal — High-Density Enterprise RPA Monitor
+# RPA Operations Terminal - High-Density Enterprise RPA Monitor
 
 A real-time, high-density enterprise control terminal that ingests a continuous
 telemetry firehose and visualizes 50,000 RPA project records with sorting,
-filtering, fuzzy search, and a hand-built virtualized data grid — all without a
+filtering, fuzzy search, and a hand-built virtualized data grid - all without a
 single external data-grid or virtualization library.
 
 > **Built for [Frontend Battle 3.0 — Vibecoding Competition](https://unstop.com/hackathons/frontend-battle-30-vibecoding-competition-indian-institute-of-technology-bhubaneswar-1696294), Round 2 (Phase 2), Indian Institute of Technology Bhubaneswar.**
