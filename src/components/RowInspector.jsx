@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { formatCurrency, formatPercent, formatNumber } from '../utils/format';
 
 // Field groups for the inspector — every relational attribute of the record,
@@ -20,12 +20,21 @@ function Chip({ on }) {
 }
 
 export default memo(function RowInspector({ record, onClose }) {
+  const panelRef = useRef(null);
+
   // Esc to close
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // Focus the panel on open for accessibility; restore focus on close.
+  useEffect(() => {
+    const prev = document.activeElement;
+    panelRef.current?.focus();
+    return () => { if (prev instanceof HTMLElement) prev.focus(); };
+  }, []);
 
   if (!record) return null;
 
@@ -35,7 +44,15 @@ export default memo(function RowInspector({ record, onClose }) {
 
   return (
     <div className="insp-backdrop" onClick={onClose}>
-      <aside className="insp-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Project inspector">
+      <aside
+        ref={panelRef}
+        className="insp-panel"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Project inspector: ${record.project_name || record.project_id}`}
+        tabIndex={-1}
+      >
         <header className="insp-head">
           <div className="insp-head-main">
             <span className="insp-id">{fmtText(record.project_id)}</span>
