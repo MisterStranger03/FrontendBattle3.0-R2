@@ -94,7 +94,9 @@ export default memo(function VirtualGrid({ rows, sortKeys, onSort, flashSetRef, 
     if (!paused || !onRowClick) return;
     const rowEl = e.target.closest('.grid-row');
     if (!rowEl) return;
-    const idx = Number(rowEl.dataset.rowIndex);
+    const raw = rowEl.dataset.rowIndex;
+    if (raw === '' || raw == null) return;   // empty = hidden/filler row
+    const idx = Number(raw);
     if (!Number.isInteger(idx)) return;
     const record = rowsRef.current[idx];
     if (record) onRowClick(record);

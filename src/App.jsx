@@ -7,6 +7,7 @@ import SearchBar from './components/SearchBar';
 import PausePlayBtn from './components/PausePlayBtn';
 import LayoutManager from './components/LayoutManager';
 import RowInspector from './components/RowInspector';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { fuzzyMatch } from './utils/fuzzy';
 import { multiSort } from './utils/sort';
 import { coerceRow } from './utils/grid';
@@ -52,12 +53,15 @@ export default function App() {
   const [streamStatus, setStreamStatus] = useState('connecting');
   const [queueSize, setQueueSize]     = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);   // pause-gated inspector
+  const [analyticsOpen, setAnalyticsOpen] = useState(false); // pause-gated analytics
 
   useEffect(() => { pausedRef.current = paused; }, [paused]);
 
-  // Inspector is only meaningful on a frozen snapshot — close it when the
-  // stream resumes so it never shows stale, mutating data.
-  useEffect(() => { if (!paused) setSelectedRow(null); }, [paused]);
+  // Both overlays are only meaningful on a frozen snapshot — close them when the
+  // stream resumes so they never show stale, mutating data.
+  useEffect(() => {
+    if (!paused) { setSelectedRow(null); setAnalyticsOpen(false); }
+  }, [paused]);
 
   const snapshotCounts = useCallback(() => {
     const c = countsRef.current;
@@ -236,6 +240,7 @@ export default function App() {
 
   const handleRowClick = useCallback((record) => { setSelectedRow(record); }, []);
   const handleInspectorClose = useCallback(() => { setSelectedRow(null); }, []);
+  const handleAnalyticsClose = useCallback(() => { setAnalyticsOpen(false); }, []);
 
   // Derived view: filter → fuzzy search → multi-sort. Recomputes on each tick
   // (dataVersion) and on any control change. Reads the in-place master ref.
@@ -285,6 +290,15 @@ export default function App() {
             <span className="header-stat-sep">/</span>
             <span className="header-stat-total">{totalRows.toLocaleString()}</span>
           </div>
+          {/* Analytics View toggle — only available while the stream is frozen */}
+          {paused && (
+            <button
+              className={`btn btn--analytics${analyticsOpen ? ' btn--analytics-on' : ''}`}
+              onClick={() => setAnalyticsOpen(o => !o)}
+            >
+              <span className="btn-icon">▤</span> ANALYTICS VIEW
+            </button>
+          )}
           <LayoutManager panels={panels} onChange={setPanels} />
           <PausePlayBtn
             paused={paused}
@@ -362,6 +376,10 @@ export default function App() {
 
       {selectedRow && (
         <RowInspector record={selectedRow} onClose={handleInspectorClose} />
+      )}
+
+      {paused && analyticsOpen && (
+        <AnalyticsDashboard rows={displayRows} onClose={handleAnalyticsClose} />
       )}
     </div>
   );
