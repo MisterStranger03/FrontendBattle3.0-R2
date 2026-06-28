@@ -42,20 +42,20 @@ hand using raw framework mechanics and native Web APIs. Runtime dependencies are
 rpa_database_2026.csv (50k rows)
         │
         ├── seeded once at startup  ─────────────► master dataset (in a ref)
-        │   (parsed with the exact uid scheme            │
+        │   (parsed with the exact uid scheme             │
         │    dataStream.js uses, so updates merge)        │
         │                                                 ▼
         └── dataStream.js  ── 200ms batches (5–50 rows) ─► processBatch()
-            (official sim,         of live mutations          │
+            (official sim,         of live mutations           │
              untouched)                                        ▼
                                             in-place merge by internal_uid
                                                                │
-                                  ┌────────────────────────────┼───────────────┐
-                                  ▼                            ▼                ▼
-                            KPI counters            filter → search → sort   flash queue
-                                                          (derived view)         │
-                                                               ▼                 ▼
-                                                       VirtualGrid (imperative DOM paint)
+                                  ┌────────────────────────────┼──────────────────┐
+                                  ▼                            ▼                  ▼
+                            KPI counters            filter → search → sort    flash queue
+                                                          (derived view)          │
+                                                               ▼                  ▼
+                                                          VirtualGrid   (imperative DOM paint)
 ```
 
 The provided `dataStream.js` only emits *random* batches, so it would take ~100
