@@ -354,8 +354,14 @@ export default function App() {
             flashSetRef={flashSetRef}
             paused={paused}
             queueSize={queueSize}
+            onRowClick={handleRowClick}
+            selectedUid={selectedRow?.internal_uid || null}
           />
         </div>
+      )}
+
+      {selectedRow && (
+        <RowInspector record={selectedRow} onClose={handleInspectorClose} />
       )}
     </div>
   );
